@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ניהול · HOMYFLIX</title>
+  <style>
+    :root { --bg:#0b0b0f; --card:#16161f; --accent:#e50914; --txt:#f5f5f7; --muted:#9a9aa7; --green:#3ad06a; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:-apple-system,'Segoe UI',Arial,sans-serif; background:var(--bg); color:var(--txt); }
+    header { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid #1d1d28; }
+    .logo { font-weight:800; font-size:20px; color:var(--accent); }
+    .logo span { color:var(--txt); }
+    a { color:var(--muted); font-size:13px; text-decoration:none; }
+    main { max-width:920px; margin:0 auto; padding:20px; }
+    .card { background:var(--card); border:1px solid #20202c; border-radius:14px; padding:18px; margin-bottom:18px; }
+    h2 { font-size:16px; margin:0 0 14px; }
+    label { display:block; font-size:13px; color:var(--muted); margin:10px 0 4px; }
+    input, textarea { width:100%; padding:11px; border-radius:10px; border:1px solid #2a2a35; background:#0e0e15; color:var(--txt); font-family:inherit; font-size:14px; }
+    textarea { resize:vertical; min-height:70px; }
+    .btn { border:none; border-radius:10px; padding:11px 18px; font-size:14px; font-weight:700; cursor:pointer; background:var(--accent); color:#fff; margin-top:12px; }
+    .btn:hover { opacity:.9; }
+    .pill { display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:20px; font-size:13px; font-weight:600; }
+    .pill.green { background:rgba(58,208,106,.15); color:var(--green); }
+    .pill.amber { background:rgba(255,180,0,.15); color:#ffc04d; }
+    .pill.red { background:rgba(255,107,107,.15); color:#ff6b6b; }
+    .qrbox { text-align:center; padding:10px; }
+    .qrbox img { width:240px; height:240px; background:#fff; border-radius:12px; padding:8px; }
+    .muted { color:var(--muted); font-size:13px; line-height:1.6; }
+    .item { display:flex; justify-content:space-between; gap:12px; padding:12px; border:1px solid #20202c; border-radius:10px; margin-bottom:10px; }
+    .item small { color:var(--muted); }
+    .del { background:#23232e; color:#ff6b6b; border:none; border-radius:8px; padding:6px 10px; cursor:pointer; font-size:12px; }
+    .msg { font-size:13px; margin-top:8px; min-height:18px; }
+    .msg.ok { color:var(--green); } .msg.err { color:#ff6b6b; }
+    .login { max-width:360px; margin:60px auto; }
+    .hide { display:none; }
+    .lead { border-right:3px solid var(--accent); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">HOMY<span>FLIX</span> · ניהול</div>
+    <a href="/">← לקטלוג</a>
+  </header>
+
+  <!-- מסך כניסה -->
+  <main id="loginView">
+    <div class="card login">
+      <h2>כניסת מנהל</h2>
+      <label>סיסמה</label>
+      <input id="pw" type="password" placeholder="סיסמת ניהול" />
+      <button class="btn" id="loginBtn">כניסה</button>
+      <div class="msg err" id="loginMsg"></div>
+    </div>
+  </main>
+
+  <!-- לוח ניהול -->
+  <main id="dashView" class="hide">
+    <!-- חיבור וואטאפ -->
+    <div class="card">
+      <h2>📱 חיבור הבוט לוואטאפ</h2>
+      <div id="waStatus"></div>
+      <div id="qrArea" class="qrbox"></div>
+    </div>
+
+    <!-- העלאת פוסט -->
+    <div class="card">
+      <h2>➕ פוסט חדש</h2>
+      <form id="postForm">
+        <label>כותרת *</label>
+        <input name="title" required placeholder="לדוגמה: דירת 3 חדרים / סרט חדש / מוצר" />
+        <label>תיאור</label>
+        <textarea name="description" placeholder="פרטים נוספים..."></textarea>
+        <label>מחיר (לא חובה)</label>
+        <input name="price" placeholder="לדוגמה: 4,500 ₪" />
+        <label>תמונה (לא חובה)</label>
+        <input name="image" type="file" accept="image/*" />
+        <button class="btn" type="submit">פרסם פוסט</button>
+        <div class="msg" id="postMsg"></div>
+      </form>
+    </div>
+
+    <!-- פוסטים קיימים -->
+    <div class="card">
+      <h2>🗂️ פוסטים קיימים</h2>
+      <div id="postList"></div>
+    </div>
+
+    <!-- לידים -->
+    <div class="card">
+      <h2>🔔 לידים שהתקבלו</h2>
+      <div id="leadList"></div>
+    </div>
+  </main>
+
+  <script>
+    let PW = '';
+
+    document.getElementById('loginBtn').onclick = async () => {
+      PW = document.getElementById('pw').value;
+      const res = await fetch('/api/leads', { headers: { 'x-admin-password': PW } });
+      if (res.ok) {
+        sessionStorage.setItem('pw', PW);
+        showDash();
+      } else {
+        document.getElementById('loginMsg').textContent = 'סיסמה שגויה';
+      }
+    };
+
+    function showDash() {
+      document.getElementById('loginView').classList.add('hide');
+      document.getElementById('dashView').classList.remove('hide');
+      refreshStatus();
+      loadPosts();
+      loadLeads();
+      setInterval(refreshStatus, 4000);
+      setInterval(loadLeads, 8000);
+    }
+
+    // ---- סטטוס וואטאפ + QR ----
+    async function refreshStatus() {
+      const res = await fetch('/api/status');
+      const s = await res.json();
+      const el = document.getElementById('waStatus');
+      const qr = document.getElementById('qrArea');
+      if (s.connected) {
+        el.innerHTML = `<span class="pill green">● מחובר</span> <span class="muted">כמספר ${s.me || ''}</span>`;
+        qr.innerHTML = '<p class="muted">הבוט מחובר ופעיל ✅ לידים יישלחו אליך אוטומטית.</p>';
+      } else if (s.status === 'qr' && s.qrDataUrl) {
+        el.innerHTML = `<span class="pill amber">● ממתין לסריקה</span>`;
+        qr.innerHTML = `<img src="${s.qrDataUrl}" alt="QR" />
+          <p class="muted">פתח וואטאפ בנייד → הגדרות → <b>מכשירים מקושרים</b> → <b>קישור מכשיר</b> → סרוק את הקוד.</p>`;
+      } else {
+        el.innerHTML = `<span class="pill red">● לא מחובר</span> <span class="muted">${s.status || ''}</span>`;
+        qr.innerHTML = '<p class="muted">מאתחל חיבור... רגע, ה-QR יופיע כאן.</p>';
+      }
+    }
+
+    // ---- פוסטים ----
+    document.getElementById('postForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const msg = document.getElementById('postMsg');
+      msg.className = 'msg'; msg.textContent = 'מפרסם...';
+      const res = await fetch('/api/posts', { method: 'POST', headers: { 'x-admin-password': PW }, body: fd });
+      const data = await res.json();
+      if (data.ok) { msg.className = 'msg ok'; msg.textContent = 'פורסם! 🎉'; e.target.reset(); loadPosts(); }
+      else { msg.className = 'msg err'; msg.textContent = data.error || 'שגיאה'; }
+    };
+
+    async function loadPosts() {
+      const res = await fetch('/api/posts');
+      const posts = await res.json();
+      const list = document.getElementById('postList');
+      if (!posts.length) { list.innerHTML = '<p class="muted">אין פוסטים עדיין.</p>'; return; }
+      list.innerHTML = '';
+      posts.forEach((p) => {
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.innerHTML = `<div><b>${esc(p.title)}</b>${p.price ? ' · ' + esc(p.price) : ''}<br><small>${esc(p.description || '')}</small></div>
+          <button class="del" data-id="${p.id}">מחק</button>`;
+        list.appendChild(div);
+      });
+      list.querySelectorAll('.del').forEach((b) => {
+        b.onclick = async () => {
+          await fetch('/api/posts/' + b.dataset.id, { method: 'DELETE', headers: { 'x-admin-password': PW } });
+          loadPosts();
+        };
+      });
+    }
+
+    // ---- לידים ----
+    async function loadLeads() {
+      const res = await fetch('/api/leads', { headers: { 'x-admin-password': PW } });
+      if (!res.ok) return;
+      const leads = await res.json();
+      const list = document.getElementById('leadList');
+      if (!leads.length) { list.innerHTML = '<p class="muted">אין לידים עדיין.</p>'; return; }
+      list.innerHTML = '';
+      leads.forEach((l) => {
+        const div = document.createElement('div');
+        div.className = 'item lead';
+        const when = new Date(l.createdAt).toLocaleString('he-IL');
+        div.innerHTML = `<div>
+            <b>${esc(l.name)}</b> · <a href="https://wa.me/${onlyDigits(l.phone)}" target="_blank">${esc(l.phone)}</a><br>
+            <small>${l.postTitle ? esc(l.postTitle) + ' · ' : ''}${when}</small>
+            ${l.message ? `<br><span class="muted">${esc(l.message)}</span>` : ''}
+          </div>`;
+        list.appendChild(div);
+      });
+    }
+
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+    function onlyDigits(s) { return String(s || '').replace(/[^0-9]/g, ''); }
+
+    // כניסה אוטומטית אם כבר התחברנו בסשן
+    const saved = sessionStorage.getItem('pw');
+    if (saved) { PW = saved; showDash(); }
+  </script>
+</body>
+</html>

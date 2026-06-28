@@ -1,0 +1,15 @@
+node_modules/
+.env
+
+# סשן הוואטאפ (לא להעלות ל-git!)
+.wwebjs_auth/
+.wwebjs_cache/
+
+# נתונים מקומיים ותמונות שהועלו
+data/*.json
+public/uploads/*
+!public/uploads/.gitkeep
+
+# לוגים
+*.log
+npm-debug.log*

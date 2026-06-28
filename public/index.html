@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HOMYFLIX 🎬</title>
+  <style>
+    :root { --bg:#0b0b0f; --card:#16161f; --accent:#e50914; --txt:#f5f5f7; --muted:#9a9aa7; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:-apple-system,'Segoe UI',Arial,sans-serif; background:var(--bg); color:var(--txt); }
+    header { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; position:sticky; top:0; background:rgba(11,11,15,.92); backdrop-filter:blur(8px); z-index:5; }
+    .logo { font-weight:800; font-size:22px; color:var(--accent); letter-spacing:.5px; }
+    .logo span { color:var(--txt); }
+    .admin-link { color:var(--muted); text-decoration:none; font-size:13px; border:1px solid #2a2a35; padding:6px 12px; border-radius:8px; }
+    main { max-width:1100px; margin:0 auto; padding:20px; }
+    h1 { font-size:18px; color:var(--muted); font-weight:500; margin:8px 0 20px; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:18px; }
+    .card { background:var(--card); border-radius:14px; overflow:hidden; border:1px solid #20202c; transition:transform .15s; }
+    .card:hover { transform:translateY(-4px); }
+    .thumb { width:100%; aspect-ratio:16/10; object-fit:cover; background:#222; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:40px; }
+    .body { padding:14px; }
+    .title { font-weight:700; font-size:16px; margin:0 0 6px; }
+    .desc { color:var(--muted); font-size:13px; margin:0 0 10px; line-height:1.5; max-height:60px; overflow:hidden; }
+    .price { color:var(--accent); font-weight:700; margin-bottom:12px; }
+    .btn { width:100%; border:none; border-radius:10px; padding:11px; font-size:14px; font-weight:700; cursor:pointer; background:var(--accent); color:#fff; }
+    .btn:hover { opacity:.9; }
+    .empty { text-align:center; color:var(--muted); padding:60px 20px; }
+    /* מודאל */
+    .overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); display:none; align-items:center; justify-content:center; padding:20px; z-index:10; }
+    .overlay.open { display:flex; }
+    .modal { background:var(--card); border-radius:16px; padding:22px; width:100%; max-width:400px; border:1px solid #2a2a35; }
+    .modal h3 { margin:0 0 4px; }
+    .modal p { color:var(--muted); font-size:13px; margin:0 0 16px; }
+    .modal input, .modal textarea { width:100%; padding:11px; margin-bottom:12px; border-radius:10px; border:1px solid #2a2a35; background:#0e0e15; color:var(--txt); font-family:inherit; font-size:14px; }
+    .modal textarea { resize:vertical; min-height:70px; }
+    .row { display:flex; gap:10px; }
+    .row .btn-ghost { background:#23232e; }
+    .msg { font-size:13px; margin-top:6px; min-height:18px; }
+    .msg.ok { color:#3ad06a; }
+    .msg.err { color:#ff6b6b; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">HOMY<span>FLIX</span></div>
+    <a class="admin-link" href="/admin">ניהול</a>
+  </header>
+  <main>
+    <h1>הפוסטים שלנו — מצאת משהו שמעניין? לחץ "מעוניין" ונחזור אליך 📲</h1>
+    <div id="grid" class="grid"></div>
+    <div id="empty" class="empty" style="display:none">עדיין אין פוסטים. חזור מאוחר יותר 🙂</div>
+  </main>
+
+  <!-- מודאל ליד -->
+  <div class="overlay" id="overlay">
+    <div class="modal">
+      <h3>השאר פרטים</h3>
+      <p id="modalPost"></p>
+      <input id="lname" placeholder="שם מלא *" />
+      <input id="lphone" placeholder="טלפון *" inputmode="tel" />
+      <textarea id="lmsg" placeholder="הודעה (לא חובה)"></textarea>
+      <div class="row">
+        <button class="btn" id="sendLead">שלח</button>
+        <button class="btn btn-ghost" id="closeModal">ביטול</button>
+      </div>
+      <div class="msg" id="leadMsg"></div>
+    </div>
+  </div>
+
+  <script>
+    let currentPostId = null;
+    const overlay = document.getElementById('overlay');
+
+    async function loadPosts() {
+      const res = await fetch('/api/posts');
+      const posts = await res.json();
+      const grid = document.getElementById('grid');
+      const empty = document.getElementById('empty');
+      grid.innerHTML = '';
+      if (!posts.length) { empty.style.display = 'block'; return; }
+      empty.style.display = 'none';
+      posts.forEach((p) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          ${p.image ? `<img class="thumb" src="${p.image}" alt="">` : `<div class="thumb">🎬</div>`}
+          <div class="body">
+            <div class="title">${esc(p.title)}</div>
+            <div class="desc">${esc(p.description || '')}</div>
+            ${p.price ? `<div class="price">${esc(p.price)}</div>` : ''}
+            <button class="btn" data-id="${p.id}" data-title="${esc(p.title)}">מעוניין / צור קשר</button>
+          </div>`;
+        grid.appendChild(card);
+      });
+      grid.querySelectorAll('button[data-id]').forEach((b) => {
+        b.onclick = () => openModal(b.dataset.id, b.dataset.title);
+      });
+    }
+
+    function openModal(id, title) {
+      currentPostId = id;
+      document.getElementById('modalPost').textContent = 'בנוגע ל: ' + title;
+      document.getElementById('leadMsg').textContent = '';
+      overlay.classList.add('open');
+    }
+    document.getElementById('closeModal').onclick = () => overlay.classList.remove('open');
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.classList.remove('open'); };
+
+    document.getElementById('sendLead').onclick = async () => {
+      const name = document.getElementById('lname').value.trim();
+      const phone = document.getElementById('lphone').value.trim();
+      const message = document.getElementById('lmsg').value.trim();
+      const msgEl = document.getElementById('leadMsg');
+      if (!name || !phone) { msgEl.className = 'msg err'; msgEl.textContent = 'נא למלא שם וטלפון'; return; }
+      msgEl.className = 'msg'; msgEl.textContent = 'שולח...';
+      try {
+        const res = await fetch('/api/leads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ postId: currentPostId, name, phone, message }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          msgEl.className = 'msg ok';
+          msgEl.textContent = data.whatsappSent ? 'נשלח! ניצור קשר בקרוב 🎉' : 'נשמר! ניצור קשר בקרוב 🎉';
+          document.getElementById('lname').value = '';
+          document.getElementById('lphone').value = '';
+          document.getElementById('lmsg').value = '';
+          setTimeout(() => overlay.classList.remove('open'), 1500);
+        } else {
+          msgEl.className = 'msg err'; msgEl.textContent = data.error || 'שגיאה';
+        }
+      } catch (e) {
+        msgEl.className = 'msg err'; msgEl.textContent = 'שגיאת רשת';
+      }
+    };
+
+    function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+    loadPosts();
+  </script>
+</body>
+</html>

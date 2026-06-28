@@ -8,7 +8,10 @@
 const fs = require('fs');
 const path = require('path');
 
-const DATA_DIR = path.join(__dirname, '..', 'data');
+// DATA_DIR ניתן להגדרה דרך משתנה סביבה (לפריסה בענן עם דיסק קבוע)
+const DATA_DIR = process.env.DATA_DIR
+  ? path.resolve(process.env.DATA_DIR)
+  : path.join(__dirname, '..', 'data');
 const POSTS_FILE = path.join(DATA_DIR, 'posts.json');
 const LEADS_FILE = path.join(DATA_DIR, 'leads.json');
 

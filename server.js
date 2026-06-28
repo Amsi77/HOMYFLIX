@@ -19,7 +19,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ---- העלאת תמונות ----
-const UPLOAD_DIR = path.join(__dirname, 'public', 'uploads');
+// UPLOAD_DIR ניתן להגדרה דרך משתנה סביבה (לפריסה בענן עם דיסק קבוע)
+const UPLOAD_DIR = process.env.UPLOAD_DIR
+  ? path.resolve(process.env.UPLOAD_DIR)
+  : path.join(__dirname, 'public', 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const upload = multer({
@@ -126,6 +129,8 @@ app.post('/api/leads', async (req, res) => {
 });
 
 // =================== עמודים ===================
+// תמונות שהועלו (יכול להיות מחוץ ל-public בענן עם דיסק קבוע)
+app.use('/uploads', express.static(UPLOAD_DIR));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/admin', (req, res) => {

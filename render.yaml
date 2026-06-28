@@ -1,0 +1,29 @@
+# Render Blueprint — פריסה בלחיצה אחת מהגיטהאב
+# מסמכים: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: homyflix-whatsapp
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter # נדרש כדי לאפשר דיסק קבוע (לא קיים בתוכנית החינמית)
+    healthCheckPath: /api/status
+    # דיסק קבוע — שומר את סשן הוואטאפ, הפוסטים, הלידים והתמונות בין פריסות
+    disk:
+      name: homyflix-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: PORT
+        value: 3000
+      # נתיבים קבועים על הדיסק (כך שלא תצטרך לסרוק QR מחדש בכל פריסה)
+      - key: WWEBJS_DATA_PATH
+        value: /var/data/wwebjs_auth
+      - key: DATA_DIR
+        value: /var/data/data
+      - key: UPLOAD_DIR
+        value: /var/data/uploads
+      # המספר שלך והסיסמה — מוגדרים ידנית בלוח הבקרה של Render (לא נשמרים בקוד)
+      - key: OWNER_NUMBER
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false

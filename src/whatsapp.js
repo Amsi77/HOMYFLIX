@@ -42,8 +42,14 @@ function buildClient() {
     puppeteerOpts.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
   }
 
+  // dataPath ניתן להגדרה כדי לשמור את סשן הוואטאפ על דיסק קבוע בענן
+  const localAuthOpts = { clientId: 'homyflix' };
+  if (process.env.WWEBJS_DATA_PATH) {
+    localAuthOpts.dataPath = process.env.WWEBJS_DATA_PATH;
+  }
+
   return new Client({
-    authStrategy: new LocalAuth({ clientId: 'homyflix' }),
+    authStrategy: new LocalAuth(localAuthOpts),
     puppeteer: puppeteerOpts,
   });
 }
